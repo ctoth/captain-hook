@@ -14,6 +14,7 @@ func TestCommandIdentity(t *testing.T) {
 		{"ward eval", true},
 		{"ward.exe eval", true},
 		{"C:/code/ward/ward.exe eval --verbose", true},
+		{"C:/Program Files/Ward/ward.exe", true},
 		{`"ward.exe" eval`, true},
 		{"claudio.exe", false},
 		{"node something", false},
@@ -24,6 +25,42 @@ func TestCommandIdentity(t *testing.T) {
 		if got := isWard(tt.cmd); got != tt.want {
 			t.Errorf("isWard(%q) = %v, want %v", tt.cmd, got, tt.want)
 		}
+	}
+}
+
+func TestInstallSerializesExecArgsAndWindowsCommand(t *testing.T) {
+	settings := make(SettingsMap)
+	specs := []HookSpec{
+		{
+			Event:          "PreToolUse",
+			Matcher:        "*",
+			Command:        "/opt/Ward Tools/ward",
+			CommandWindows: `C:/Program Files/Ward/ward.exe eval`,
+			Args:           []string{"eval"},
+			Timeout:        5,
+		},
+	}
+
+	if err := Install(&settings, specs, CommandIdentity("ward", "ward.exe")); err != nil {
+		t.Fatal(err)
+	}
+
+	hooks := settings["hooks"].(map[string]interface{})
+	groups := hooks["PreToolUse"].([]interface{})
+	group := groups[0].(map[string]interface{})
+	entry := group["hooks"].([]interface{})[0].(map[string]interface{})
+	if entry["command"] != "/opt/Ward Tools/ward" {
+		t.Fatalf("command = %#v", entry["command"])
+	}
+	if entry["commandWindows"] != `C:/Program Files/Ward/ward.exe eval` {
+		t.Fatalf("commandWindows = %#v", entry["commandWindows"])
+	}
+	args, ok := entry["args"].([]string)
+	if !ok || len(args) != 1 || args[0] != "eval" {
+		t.Fatalf("args = %#v, want [eval]", entry["args"])
+	}
+	if group["matcher"] != "*" {
+		t.Fatalf("matcher = %#v, want *", group["matcher"])
 	}
 }
 

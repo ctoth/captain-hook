@@ -9,9 +9,11 @@ import (
 
 // HookEntry represents a single hook command within a hook group.
 type HookEntry struct {
-	Type    string `json:"type"`
-	Command string `json:"command"`
-	Timeout int    `json:"timeout,omitempty"`
+	Type           string   `json:"type"`
+	Command        string   `json:"command"`
+	CommandWindows string   `json:"commandWindows,omitempty"`
+	Args           []string `json:"args,omitempty"`
+	Timeout        int      `json:"timeout,omitempty"`
 }
 
 // HookGroup represents a matcher + hooks array pair in the settings.
@@ -22,10 +24,12 @@ type HookGroup struct {
 
 // HookSpec defines a hook that a tool wants to register.
 type HookSpec struct {
-	Event   string // "PreToolUse", "SessionEnd", etc.
-	Matcher string // "Bash|Edit|Write|WebFetch", ".*", etc.
-	Command string // "ward eval", "claudio.exe", etc.
-	Timeout int    // seconds, 0 = default
+	Event          string   // "PreToolUse", "SessionEnd", etc.
+	Matcher        string   // "Bash|Edit|Write|WebFetch", ".*", etc.
+	Command        string   // executable in exec form, shell command otherwise
+	CommandWindows string   // optional Windows command override
+	Args           []string // optional exec-form argument vector
+	Timeout        int      // seconds, 0 = default
 }
 
 // IdentityFunc returns true if a command string belongs to a given tool.
@@ -36,17 +40,23 @@ type IdentityFunc func(command string) bool
 // Example: CommandIdentity("ward", "ward.exe") matches "ward eval", "C:/code/ward/ward.exe eval".
 func CommandIdentity(names ...string) IdentityFunc {
 	return func(command string) bool {
-		// Extract the first token (executable) from the command
-		parts := strings.Fields(command)
-		if len(parts) == 0 {
+		command = strings.TrimSpace(command)
+		if command == "" {
 			return false
 		}
-		exe := filepath.Base(parts[0])
-		// Strip quotes
-		exe = strings.Trim(exe, `"'`)
-		for _, name := range names {
-			if strings.EqualFold(exe, name) {
-				return true
+
+		// Exec-form commands can be an unquoted path containing spaces because
+		// the argument vector is stored separately. Check the whole value first.
+		candidates := []string{command}
+		if parts := strings.Fields(command); len(parts) > 0 {
+			candidates = append(candidates, parts[0])
+		}
+		for _, candidate := range candidates {
+			exe := strings.Trim(filepath.Base(candidate), `"'`)
+			for _, name := range names {
+				if strings.EqualFold(exe, name) {
+					return true
+				}
 			}
 		}
 		return false
@@ -150,6 +160,12 @@ func buildGroup(spec HookSpec) map[string]interface{} {
 	entry := map[string]interface{}{
 		"type":    "command",
 		"command": spec.Command,
+	}
+	if spec.CommandWindows != "" {
+		entry["commandWindows"] = spec.CommandWindows
+	}
+	if len(spec.Args) > 0 {
+		entry["args"] = append([]string(nil), spec.Args...)
 	}
 	if spec.Timeout > 0 {
 		entry["timeout"] = spec.Timeout
