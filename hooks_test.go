@@ -15,6 +15,7 @@ func TestCommandIdentity(t *testing.T) {
 		{"ward.exe eval", true},
 		{"C:/code/ward/ward.exe eval --verbose", true},
 		{"C:/Program Files/Ward/ward.exe", true},
+		{`"C:/Program Files/Ward/ward.exe" eval`, true},
 		{`"ward.exe" eval`, true},
 		{"claudio.exe", false},
 		{"node something", false},

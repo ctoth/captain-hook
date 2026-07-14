@@ -48,7 +48,11 @@ func CommandIdentity(names ...string) IdentityFunc {
 		// Exec-form commands can be an unquoted path containing spaces because
 		// the argument vector is stored separately. Check the whole value first.
 		candidates := []string{command}
-		if parts := strings.Fields(command); len(parts) > 0 {
+		if command[0] == '"' || command[0] == '\'' {
+			if end := strings.IndexByte(command[1:], command[0]); end >= 0 {
+				candidates = append(candidates, command[1:end+1])
+			}
+		} else if parts := strings.Fields(command); len(parts) > 0 {
 			candidates = append(candidates, parts[0])
 		}
 		for _, candidate := range candidates {
