@@ -383,3 +383,15 @@ Completion:
   Claudio command; that interactive trust/restart action is outside the CLI
   installer and is the only remaining operator action.
 - Current blocker: none for the implemented workstream.
+
+Post-closeout temporal check:
+- The immediate before/after Codex install checks both read Claude settings hash
+  `C151630EC00050BB00C187DC916EBB9B4977BD6FD332D219E4B8D5A83A48AFC3`, which
+  proves the Codex-only installer did not write Claude settings.
+- A later final audit read a different Claude hash and a file timestamp of
+  2026-07-15 00:46:12, after both the new Claudio binary timestamp (00:44:58)
+  and Codex settings timestamp (00:45:05). That later rewrite is temporally
+  separate from the Codex install and is not attributed here.
+- The same final audit counted exactly 10 Claudio Codex entries, all 10 with
+  the expected PowerShell-native command, plus 4 Ward entries and 2 notes
+  entries.
