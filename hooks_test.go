@@ -138,6 +138,70 @@ func TestInstallPreservesOtherHooks(t *testing.T) {
 	}
 }
 
+func TestInstallPreservesNonOwnedSiblingsWithinOwnedGroup(t *testing.T) {
+	tests := []struct {
+		name     string
+		commands []interface{}
+	}{
+		{
+			name: "owned command first",
+			commands: []interface{}{
+				map[string]interface{}{"type": "command", "command": "ward eval --old"},
+				map[string]interface{}{"type": "command", "command": "user-lint"},
+			},
+		},
+		{
+			name: "owned command after sibling",
+			commands: []interface{}{
+				map[string]interface{}{"type": "command", "command": "user-lint"},
+				map[string]interface{}{"type": "command", "command": "ward eval --old"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings := SettingsMap{
+				"hooks": map[string]interface{}{
+					"PreToolUse": []interface{}{
+						map[string]interface{}{
+							"matcher": "existing",
+							"hooks":   tt.commands,
+						},
+					},
+				},
+			}
+
+			err := Install(&settings, []HookSpec{
+				{Event: "PreToolUse", Matcher: "new", Command: "ward eval"},
+			}, CommandIdentity("ward", "ward.exe"))
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			hooks := settings["hooks"].(map[string]interface{})
+			groups := hooks["PreToolUse"].([]interface{})
+			if len(groups) != 2 {
+				t.Fatalf("groups = %d, want preserved sibling group + new Ward group: %#v", len(groups), groups)
+			}
+			preserved := groups[0].(map[string]interface{})
+			preservedCommands := preserved["hooks"].([]interface{})
+			if len(preservedCommands) != 1 {
+				t.Fatalf("preserved commands = %d, want 1: %#v", len(preservedCommands), preservedCommands)
+			}
+			preservedEntry := preservedCommands[0].(map[string]interface{})
+			if preservedEntry["command"] != "user-lint" {
+				t.Fatalf("preserved command = %#v, want user-lint", preservedEntry["command"])
+			}
+			installed := groups[1].(map[string]interface{})
+			installedEntry := installed["hooks"].([]interface{})[0].(map[string]interface{})
+			if installedEntry["command"] != "ward eval" {
+				t.Fatalf("installed command = %#v, want ward eval", installedEntry["command"])
+			}
+		})
+	}
+}
+
 func TestUninstall(t *testing.T) {
 	settings := make(SettingsMap)
 	specs := []HookSpec{
@@ -187,5 +251,59 @@ func TestUninstallPreservesOthers(t *testing.T) {
 	groups := hooks["PreToolUse"].([]interface{})
 	if len(groups) != 1 {
 		t.Errorf("expected 1 group (claudio only), got %d", len(groups))
+	}
+}
+
+func TestUninstallPreservesNonOwnedSiblingsWithinOwnedGroup(t *testing.T) {
+	tests := []struct {
+		name     string
+		commands []interface{}
+	}{
+		{
+			name: "owned command first",
+			commands: []interface{}{
+				map[string]interface{}{"type": "command", "command": "ward eval"},
+				map[string]interface{}{"type": "command", "command": "user-lint"},
+			},
+		},
+		{
+			name: "owned command after sibling",
+			commands: []interface{}{
+				map[string]interface{}{"type": "command", "command": "user-lint"},
+				map[string]interface{}{"type": "command", "command": "ward eval"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings := SettingsMap{
+				"hooks": map[string]interface{}{
+					"PreToolUse": []interface{}{
+						map[string]interface{}{
+							"matcher": "existing",
+							"hooks":   tt.commands,
+						},
+					},
+				},
+			}
+
+			Uninstall(&settings, CommandIdentity("ward", "ward.exe"))
+
+			hooks := settings["hooks"].(map[string]interface{})
+			groups := hooks["PreToolUse"].([]interface{})
+			if len(groups) != 1 {
+				t.Fatalf("groups = %d, want preserved sibling group: %#v", len(groups), groups)
+			}
+			preserved := groups[0].(map[string]interface{})
+			preservedCommands := preserved["hooks"].([]interface{})
+			if len(preservedCommands) != 1 {
+				t.Fatalf("preserved commands = %d, want 1: %#v", len(preservedCommands), preservedCommands)
+			}
+			preservedEntry := preservedCommands[0].(map[string]interface{})
+			if preservedEntry["command"] != "user-lint" {
+				t.Fatalf("preserved command = %#v, want user-lint", preservedEntry["command"])
+			}
+		})
 	}
 }

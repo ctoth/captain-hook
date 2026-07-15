@@ -101,8 +101,8 @@ func Uninstall(settings *SettingsMap, isOurs IdentityFunc) {
 
 		var kept []interface{}
 		for _, g := range groups {
-			if !groupBelongsTo(g, isOurs) {
-				kept = append(kept, g)
+			if group, keep := stripOwnedCommands(g, isOurs); keep {
+				kept = append(kept, group)
 			}
 		}
 
@@ -144,20 +144,14 @@ func installOneHook(hooks map[string]interface{}, spec HookSpec, isOurs Identity
 		return
 	}
 
-	// Find and replace existing hook from this tool, or append
-	replaced := false
-	for i, g := range groups {
-		if groupBelongsTo(g, isOurs) {
-			groups[i] = newGroup
-			replaced = true
-			break
+	kept := make([]interface{}, 0, len(groups)+1)
+	for _, g := range groups {
+		if group, keep := stripOwnedCommands(g, isOurs); keep {
+			kept = append(kept, group)
 		}
 	}
-
-	if !replaced {
-		groups = append(groups, newGroup)
-	}
-	hooks[spec.Event] = groups
+	kept = append(kept, newGroup)
+	hooks[spec.Event] = kept
 }
 
 func buildGroup(spec HookSpec) map[string]interface{} {
@@ -184,25 +178,45 @@ func buildGroup(spec HookSpec) map[string]interface{} {
 	return group
 }
 
-func groupBelongsTo(groupRaw interface{}, isOurs IdentityFunc) bool {
+func stripOwnedCommands(groupRaw interface{}, isOurs IdentityFunc) (interface{}, bool) {
 	group, ok := groupRaw.(map[string]interface{})
 	if !ok {
-		return false
+		return groupRaw, true
 	}
 	hooksRaw, ok := group["hooks"].([]interface{})
-	if !ok || len(hooksRaw) == 0 {
-		return false
-	}
-	// Check the first hook entry in the group
-	entry, ok := hooksRaw[0].(map[string]interface{})
 	if !ok {
-		return false
+		return groupRaw, true
 	}
-	cmd, ok := entry["command"].(string)
-	if !ok {
-		return false
+
+	kept := make([]interface{}, 0, len(hooksRaw))
+	removed := false
+	for _, hookRaw := range hooksRaw {
+		entry, ok := hookRaw.(map[string]interface{})
+		if !ok {
+			kept = append(kept, hookRaw)
+			continue
+		}
+		cmd, ok := entry["command"].(string)
+		if ok && isOurs(cmd) {
+			removed = true
+			continue
+		}
+		kept = append(kept, hookRaw)
 	}
-	return isOurs(cmd)
+
+	if !removed {
+		return groupRaw, true
+	}
+	if len(kept) == 0 {
+		return nil, false
+	}
+
+	updated := make(map[string]interface{}, len(group))
+	for key, value := range group {
+		updated[key] = value
+	}
+	updated["hooks"] = kept
+	return updated, true
 }
 
 // deepCopy creates a deep copy of settings via JSON round-trip.
