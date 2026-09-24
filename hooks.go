@@ -76,45 +76,73 @@ func portableBase(path string) string {
 	return path
 }
 
+// legacyMatcher is the matcher given to a legacy string command when it is
+// rewritten as a matcher group.
+const legacyMatcher = ".*"
+
 // Install adds or updates hooks in settings for a given tool.
 // It's idempotent: running it twice produces the same result.
-// Other tools' hooks are preserved.
+// Other tools' hooks are preserved, including legacy string commands, which
+// are rewritten as one-command entries so ours can be appended next to them.
+//
+// Install returns an error, leaving settings unchanged, when the hooks
+// section or an event it would touch has a shape it does not understand.
 func Install(settings *SettingsMap, specs []HookSpec, isOurs IdentityFunc) error {
-	hooks := getOrCreateHooksSection(settings)
-
-	for _, spec := range specs {
-		installOneHook(hooks, spec, isOurs)
+	hooks, err := hooksSection(settings)
+	if err != nil {
+		return err
 	}
 
-	(*settings)["hooks"] = map[string]interface{}(hooks)
+	// Group specs by event, keeping first-seen order, so every spec for an
+	// event survives: strip ours once, then append all of them.
+	var events []string
+	byEvent := make(map[string][]HookSpec)
+	for _, spec := range specs {
+		if _, seen := byEvent[spec.Event]; !seen {
+			events = append(events, spec.Event)
+		}
+		byEvent[spec.Event] = append(byEvent[spec.Event], spec)
+	}
+
+	// Validate every touched event before changing anything.
+	updated := make(map[string][]interface{}, len(events))
+	for _, event := range events {
+		entries, err := eventEntries(hooks[event])
+		if err != nil {
+			return fmt.Errorf("hooks.%s: %w", event, err)
+		}
+		kept, _ := stripOwned(entries, isOurs)
+		for _, spec := range byEvent[event] {
+			kept = append(kept, buildGroup(spec))
+		}
+		updated[event] = kept
+	}
+
+	for event, entries := range updated {
+		hooks[event] = entries
+	}
+	(*settings)["hooks"] = hooks
 	return nil
 }
 
 // Uninstall removes all hooks belonging to a tool from settings.
-// Other tools' hooks are preserved.
+// Other tools' hooks are preserved. Events and a hooks section that end up
+// empty are deleted; shapes it does not understand are left alone.
 func Uninstall(settings *SettingsMap, isOurs IdentityFunc) {
-	hooksRaw, ok := (*settings)["hooks"]
-	if !ok {
-		return
-	}
-	hooksMap, ok := hooksRaw.(map[string]interface{})
+	hooksMap, ok := (*settings)["hooks"].(map[string]interface{})
 	if !ok {
 		return
 	}
 
-	for event, groupsRaw := range hooksMap {
-		groups, ok := groupsRaw.([]interface{})
-		if !ok {
+	for event, value := range hooksMap {
+		entries, err := eventEntries(value)
+		if err != nil {
 			continue
 		}
-
-		var kept []interface{}
-		for _, g := range groups {
-			if group, keep := stripOwnedCommands(g, isOurs); keep {
-				kept = append(kept, group)
-			}
+		kept, removed := stripOwned(entries, isOurs)
+		if removed == 0 {
+			continue
 		}
-
 		if len(kept) == 0 {
 			delete(hooksMap, event)
 		} else {
@@ -127,47 +155,45 @@ func Uninstall(settings *SettingsMap, isOurs IdentityFunc) {
 	}
 }
 
-func getOrCreateHooksSection(settings *SettingsMap) map[string]interface{} {
-	if hooksRaw, ok := (*settings)["hooks"]; ok {
-		if m, ok := hooksRaw.(map[string]interface{}); ok {
-			return m
-		}
+// hooksSection returns settings["hooks"], creating it when absent. A hooks
+// value that is not a JSON object is an error.
+func hooksSection(settings *SettingsMap) (map[string]interface{}, error) {
+	raw, ok := (*settings)["hooks"]
+	if !ok || raw == nil {
+		return make(map[string]interface{}), nil
 	}
-	m := make(map[string]interface{})
-	(*settings)["hooks"] = m
-	return m
+	m, ok := raw.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("hooks: expected an object, got %T", raw)
+	}
+	return m, nil
 }
 
-func installOneHook(hooks map[string]interface{}, spec HookSpec, isOurs IdentityFunc) {
-	newGroup := buildGroup(spec)
-
-	groupsRaw, exists := hooks[spec.Event]
-	if !exists {
-		hooks[spec.Event] = []interface{}{newGroup}
-		return
+// eventEntries returns an event's value as a hook array. An absent value is
+// empty and a legacy string is one command in a matcher group. Any other
+// shape is an error.
+func eventEntries(value interface{}) ([]interface{}, error) {
+	switch v := value.(type) {
+	case nil:
+		return nil, nil
+	case []interface{}:
+		return v, nil
+	case string:
+		return []interface{}{map[string]interface{}{
+			"matcher": legacyMatcher,
+			"hooks":   []interface{}{commandEntry(v)},
+		}}, nil
+	default:
+		return nil, fmt.Errorf("expected an array or a command string, got %T", value)
 	}
+}
 
-	groups, ok := groupsRaw.([]interface{})
-	if !ok {
-		hooks[spec.Event] = []interface{}{newGroup}
-		return
-	}
-
-	kept := make([]interface{}, 0, len(groups)+1)
-	for _, g := range groups {
-		if group, keep := stripOwnedCommands(g, isOurs); keep {
-			kept = append(kept, group)
-		}
-	}
-	kept = append(kept, newGroup)
-	hooks[spec.Event] = kept
+func commandEntry(command string) map[string]interface{} {
+	return map[string]interface{}{"type": "command", "command": command}
 }
 
 func buildGroup(spec HookSpec) map[string]interface{} {
-	entry := map[string]interface{}{
-		"type":    "command",
-		"command": spec.Command,
-	}
+	entry := commandEntry(spec.Command)
 	if spec.CommandWindows != "" {
 		entry["commandWindows"] = spec.CommandWindows
 	}
@@ -187,37 +213,47 @@ func buildGroup(spec HookSpec) map[string]interface{} {
 	return group
 }
 
-func stripOwnedCommands(groupRaw interface{}, isOurs IdentityFunc) (interface{}, bool) {
+// stripOwned returns the entries left after removing our commands, and how
+// many commands it removed. A matcher group is dropped only when removal
+// emptied it; groups without our commands are kept as they are. The input
+// is not modified.
+func stripOwned(entries []interface{}, isOurs IdentityFunc) ([]interface{}, int) {
+	kept := make([]interface{}, 0, len(entries)+1)
+	removed := 0
+	for _, entry := range entries {
+		group, n, keep := stripOwnedCommands(entry, isOurs)
+		removed += n
+		if keep {
+			kept = append(kept, group)
+		}
+	}
+	return kept, removed
+}
+
+func stripOwnedCommands(groupRaw interface{}, isOurs IdentityFunc) (interface{}, int, bool) {
 	group, ok := groupRaw.(map[string]interface{})
 	if !ok {
-		return groupRaw, true
+		return groupRaw, 0, true
 	}
 	hooksRaw, ok := group["hooks"].([]interface{})
 	if !ok {
-		return groupRaw, true
+		return groupRaw, 0, true
 	}
 
 	kept := make([]interface{}, 0, len(hooksRaw))
-	removed := false
 	for _, hookRaw := range hooksRaw {
-		entry, ok := hookRaw.(map[string]interface{})
-		if !ok {
-			kept = append(kept, hookRaw)
-			continue
-		}
-		cmd, ok := entry["command"].(string)
-		if ok && isOurs(cmd) {
-			removed = true
+		if entry, ok := hookRaw.(map[string]interface{}); ok && isOwnedCommand(entry, isOurs) {
 			continue
 		}
 		kept = append(kept, hookRaw)
 	}
 
-	if !removed {
-		return groupRaw, true
+	removed := len(hooksRaw) - len(kept)
+	if removed == 0 {
+		return groupRaw, 0, true
 	}
 	if len(kept) == 0 {
-		return nil, false
+		return nil, removed, false
 	}
 
 	updated := make(map[string]interface{}, len(group))
@@ -225,7 +261,12 @@ func stripOwnedCommands(groupRaw interface{}, isOurs IdentityFunc) (interface{},
 		updated[key] = value
 	}
 	updated["hooks"] = kept
-	return updated, true
+	return updated, removed, true
+}
+
+func isOwnedCommand(entry map[string]interface{}, isOurs IdentityFunc) bool {
+	cmd, ok := entry["command"].(string)
+	return ok && isOurs(cmd)
 }
 
 // deepCopy creates a deep copy of settings via JSON round-trip.
