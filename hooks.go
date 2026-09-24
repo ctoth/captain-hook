@@ -29,7 +29,18 @@ type HookSpec struct {
 	CommandWindows string   // optional Windows command override
 	Args           []string // optional exec-form argument vector
 	Timeout        int      // seconds, 0 = default
+
+	// Flat writes the command entry directly into the event's array,
+	// without a matcher group (the GitHub Copilot CLI layout). Matcher is
+	// ignored for flat specs.
+	Flat bool
+	// Extra holds additional command-entry fields, such as "name" or
+	// "timeoutSec". It may not set a field captain-hook writes itself.
+	Extra map[string]interface{}
 }
+
+// ownFields are the command-entry fields captain-hook writes from HookSpec.
+var ownFields = []string{"type", "command", "commandWindows", "args", "timeout"}
 
 // IdentityFunc returns true if a command string belongs to a given tool.
 // Used to detect existing hooks during merge (for idempotent install).
@@ -104,16 +115,24 @@ func Install(settings *SettingsMap, specs []HookSpec, isOurs IdentityFunc) error
 		byEvent[spec.Event] = append(byEvent[spec.Event], spec)
 	}
 
-	// Validate every touched event before changing anything.
+	// Validate every spec and touched event before changing anything.
+	for _, spec := range specs {
+		for _, key := range ownFields {
+			if _, ok := spec.Extra[key]; ok {
+				return fmt.Errorf("hook %s: Extra may not set %q", spec.Event, key)
+			}
+		}
+	}
 	updated := make(map[string][]interface{}, len(events))
 	for _, event := range events {
-		entries, err := eventEntries(hooks[event])
+		flat := byEvent[event][0].Flat
+		entries, err := eventEntries(hooks[event], flat)
 		if err != nil {
 			return fmt.Errorf("hooks.%s: %w", event, err)
 		}
 		kept, _ := stripOwned(entries, isOurs)
 		for _, spec := range byEvent[event] {
-			kept = append(kept, buildGroup(spec))
+			kept = append(kept, buildEntry(spec))
 		}
 		updated[event] = kept
 	}
@@ -135,7 +154,7 @@ func Uninstall(settings *SettingsMap, isOurs IdentityFunc) {
 	}
 
 	for event, value := range hooksMap {
-		entries, err := eventEntries(value)
+		entries, err := eventEntries(value, false)
 		if err != nil {
 			continue
 		}
@@ -170,15 +189,18 @@ func hooksSection(settings *SettingsMap) (map[string]interface{}, error) {
 }
 
 // eventEntries returns an event's value as a hook array. An absent value is
-// empty and a legacy string is one command in a matcher group. Any other
-// shape is an error.
-func eventEntries(value interface{}) ([]interface{}, error) {
+// empty and a legacy string is one command: a bare command entry in the flat
+// layout, else a matcher group. Any other shape is an error.
+func eventEntries(value interface{}, flat bool) ([]interface{}, error) {
 	switch v := value.(type) {
 	case nil:
 		return nil, nil
 	case []interface{}:
 		return v, nil
 	case string:
+		if flat {
+			return []interface{}{commandEntry(v)}, nil
+		}
 		return []interface{}{map[string]interface{}{
 			"matcher": legacyMatcher,
 			"hooks":   []interface{}{commandEntry(v)},
@@ -192,8 +214,13 @@ func commandEntry(command string) map[string]interface{} {
 	return map[string]interface{}{"type": "command", "command": command}
 }
 
-func buildGroup(spec HookSpec) map[string]interface{} {
+// buildEntry returns the event-array element for spec: its command entry,
+// wrapped in a matcher group unless the spec is flat.
+func buildEntry(spec HookSpec) map[string]interface{} {
 	entry := commandEntry(spec.Command)
+	for key, value := range spec.Extra {
+		entry[key] = value
+	}
 	if spec.CommandWindows != "" {
 		entry["commandWindows"] = spec.CommandWindows
 	}
@@ -202,6 +229,9 @@ func buildGroup(spec HookSpec) map[string]interface{} {
 	}
 	if spec.Timeout > 0 {
 		entry["timeout"] = spec.Timeout
+	}
+	if spec.Flat {
+		return entry
 	}
 
 	group := map[string]interface{}{
@@ -214,9 +244,9 @@ func buildGroup(spec HookSpec) map[string]interface{} {
 }
 
 // stripOwned returns the entries left after removing our commands, and how
-// many commands it removed. A matcher group is dropped only when removal
-// emptied it; groups without our commands are kept as they are. The input
-// is not modified.
+// many commands it removed. An entry is a command (flat layout) or a
+// matcher group. A group is dropped only when removal emptied it; groups
+// without our commands are kept as they are. The input is not modified.
 func stripOwned(entries []interface{}, isOurs IdentityFunc) ([]interface{}, int) {
 	kept := make([]interface{}, 0, len(entries)+1)
 	removed := 0
@@ -234,6 +264,9 @@ func stripOwnedCommands(groupRaw interface{}, isOurs IdentityFunc) (interface{},
 	group, ok := groupRaw.(map[string]interface{})
 	if !ok {
 		return groupRaw, 0, true
+	}
+	if isOwnedCommand(group, isOurs) {
+		return nil, 1, false
 	}
 	hooksRaw, ok := group["hooks"].([]interface{})
 	if !ok {
