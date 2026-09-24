@@ -17,6 +17,12 @@ func TestCommandIdentity(t *testing.T) {
 		{"C:/Program Files/Ward/ward.exe", true},
 		{`"C:/Program Files/Ward/ward.exe" eval`, true},
 		{`"ward.exe" eval`, true},
+		// settings files are portable: Windows paths must match on any OS.
+		{`C:\code\ward\ward.exe eval`, true},
+		{`"C:\Program Files\Ward\ward.exe" eval`, true},
+		{`C:\Program Files\Ward\ward.exe`, true},
+		{`/opt/ward/bin/ward`, true},
+		{`C:\tools\notward.exe`, false},
 		{"claudio.exe", false},
 		{"node something", false},
 		{"", false},

@@ -3,7 +3,6 @@ package captainhook
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strings"
 )
 
@@ -56,7 +55,7 @@ func CommandIdentity(names ...string) IdentityFunc {
 			candidates = append(candidates, parts[0])
 		}
 		for _, candidate := range candidates {
-			exe := strings.Trim(filepath.Base(candidate), `"'`)
+			exe := strings.Trim(portableBase(candidate), `"'`)
 			for _, name := range names {
 				if strings.EqualFold(exe, name) {
 					return true
@@ -65,6 +64,16 @@ func CommandIdentity(names ...string) IdentityFunc {
 		}
 		return false
 	}
+}
+
+// portableBase returns the last path element, splitting on both '/' and
+// '\'. filepath.Base only honors the host separator, but settings files
+// are portable: a Windows path must be recognized on Linux too.
+func portableBase(path string) string {
+	if i := strings.LastIndexAny(path, `/\`); i >= 0 {
+		return path[i+1:]
+	}
+	return path
 }
 
 // Install adds or updates hooks in settings for a given tool.
