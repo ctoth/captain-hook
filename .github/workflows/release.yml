@@ -1,0 +1,34 @@
+name: Release
+
+# Pushing a vX.Y.Z tag is the release: the Go module proxy serves the tag
+# as soon as it exists. This workflow re-runs the tests on the tagged commit
+# and publishes a GitHub release with generated notes.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test ./... -count=1
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+
+      - name: Warm the Go module proxy
+        # Outside the module: Go refuses to version-query the main module.
+        working-directory: ${{ runner.temp }}
+        run: GOPROXY=https://proxy.golang.org go list -m "github.com/ctoth/captain-hook@$GITHUB_REF_NAME"

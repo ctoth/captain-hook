@@ -17,6 +17,12 @@ func TestCommandIdentity(t *testing.T) {
 		{"C:/Program Files/Ward/ward.exe", true},
 		{`"C:/Program Files/Ward/ward.exe" eval`, true},
 		{`"ward.exe" eval`, true},
+		// settings files are portable: Windows paths must match on any OS.
+		{`C:\code\ward\ward.exe eval`, true},
+		{`"C:\Program Files\Ward\ward.exe" eval`, true},
+		{`C:\Program Files\Ward\ward.exe`, true},
+		{`/opt/ward/bin/ward`, true},
+		{`C:\tools\notward.exe`, false},
 		{"claudio.exe", false},
 		{"node something", false},
 		{"", false},
@@ -97,8 +103,12 @@ func TestInstallIdempotent(t *testing.T) {
 	}
 	isWard := CommandIdentity("ward", "ward.exe")
 
-	Install(&settings, specs, isWard)
-	Install(&settings, specs, isWard)
+	if err := Install(&settings, specs, isWard); err != nil {
+		t.Fatal(err)
+	}
+	if err := Install(&settings, specs, isWard); err != nil {
+		t.Fatal(err)
+	}
 
 	hooks := settings["hooks"].(map[string]interface{})
 	groups := hooks["PreToolUse"].([]interface{})
@@ -129,7 +139,9 @@ func TestInstallPreservesOtherHooks(t *testing.T) {
 	}
 	isWard := CommandIdentity("ward", "ward.exe")
 
-	Install(&settings, specs, isWard)
+	if err := Install(&settings, specs, isWard); err != nil {
+		t.Fatal(err)
+	}
 
 	hooks := settings["hooks"].(map[string]interface{})
 	groups := hooks["PreToolUse"].([]interface{})
@@ -210,7 +222,9 @@ func TestUninstall(t *testing.T) {
 	}
 	isWard := CommandIdentity("ward", "ward.exe")
 
-	Install(&settings, specs, isWard)
+	if err := Install(&settings, specs, isWard); err != nil {
+		t.Fatal(err)
+	}
 	Uninstall(&settings, isWard)
 
 	if _, ok := settings["hooks"]; ok {
