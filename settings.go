@@ -119,28 +119,32 @@ func WriteSettings(path string, settings *SettingsMap) error {
 		return fmt.Errorf("marshal settings: %w", err)
 	}
 
-	// Atomic write: temp file + rename
+	// Atomic write: temp file + rename. The temp file is removed on any
+	// failure; that cleanup is best effort.
 	tmp, err := os.CreateTemp(dir, ".settings-*.tmp")
 	if err != nil {
 		return fmt.Errorf("create temp: %w", err)
 	}
 	tmpName := tmp.Name()
+	fail := func(err error) error {
+		_ = os.Remove(tmpName)
+		return err
+	}
 
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmpName)
-		return fmt.Errorf("write temp: %w", err)
+		_ = tmp.Close()
+		return fail(fmt.Errorf("write temp: %w", err))
 	}
-	tmp.Close()
-
+	// A failed Close can mean the data never reached the disk, so it must
+	// not be renamed over the real settings file.
+	if err := tmp.Close(); err != nil {
+		return fail(fmt.Errorf("close temp: %w", err))
+	}
 	if err := os.Chmod(tmpName, mode); err != nil {
-		os.Remove(tmpName)
-		return fmt.Errorf("chmod temp: %w", err)
+		return fail(fmt.Errorf("chmod temp: %w", err))
 	}
-
 	if err := os.Rename(tmpName, path); err != nil {
-		os.Remove(tmpName)
-		return fmt.Errorf("rename temp: %w", err)
+		return fail(fmt.Errorf("rename temp: %w", err))
 	}
 	return nil
 }

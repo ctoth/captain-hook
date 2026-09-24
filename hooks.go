@@ -1,7 +1,6 @@
 package captainhook
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -322,17 +321,4 @@ func stripOwnedCommands(groupRaw interface{}, isOurs IdentityFunc) (interface{},
 func isOwnedCommand(entry map[string]interface{}, isOurs IdentityFunc) bool {
 	cmd, ok := entry["command"].(string)
 	return ok && isOurs(cmd)
-}
-
-// deepCopy creates a deep copy of settings via JSON round-trip.
-func deepCopy(s *SettingsMap) (*SettingsMap, error) {
-	data, err := json.Marshal(s)
-	if err != nil {
-		return nil, fmt.Errorf("marshal for copy: %w", err)
-	}
-	var copy SettingsMap
-	if err := json.Unmarshal(data, &copy); err != nil {
-		return nil, fmt.Errorf("unmarshal for copy: %w", err)
-	}
-	return &copy, nil
 }

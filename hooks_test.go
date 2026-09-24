@@ -103,8 +103,12 @@ func TestInstallIdempotent(t *testing.T) {
 	}
 	isWard := CommandIdentity("ward", "ward.exe")
 
-	Install(&settings, specs, isWard)
-	Install(&settings, specs, isWard)
+	if err := Install(&settings, specs, isWard); err != nil {
+		t.Fatal(err)
+	}
+	if err := Install(&settings, specs, isWard); err != nil {
+		t.Fatal(err)
+	}
 
 	hooks := settings["hooks"].(map[string]interface{})
 	groups := hooks["PreToolUse"].([]interface{})
@@ -135,7 +139,9 @@ func TestInstallPreservesOtherHooks(t *testing.T) {
 	}
 	isWard := CommandIdentity("ward", "ward.exe")
 
-	Install(&settings, specs, isWard)
+	if err := Install(&settings, specs, isWard); err != nil {
+		t.Fatal(err)
+	}
 
 	hooks := settings["hooks"].(map[string]interface{})
 	groups := hooks["PreToolUse"].([]interface{})
@@ -216,7 +222,9 @@ func TestUninstall(t *testing.T) {
 	}
 	isWard := CommandIdentity("ward", "ward.exe")
 
-	Install(&settings, specs, isWard)
+	if err := Install(&settings, specs, isWard); err != nil {
+		t.Fatal(err)
+	}
 	Uninstall(&settings, isWard)
 
 	if _, ok := settings["hooks"]; ok {
