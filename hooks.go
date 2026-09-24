@@ -3,6 +3,7 @@ package captainhook
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -172,6 +173,27 @@ func Uninstall(settings *SettingsMap, isOurs IdentityFunc) {
 	if len(hooksMap) == 0 {
 		delete(*settings, "hooks")
 	}
+}
+
+// OwnedEvents returns the sorted names of events that hold at least one of
+// our commands, in any layout (matcher group, flat entry or legacy string).
+func OwnedEvents(settings *SettingsMap, isOurs IdentityFunc) []string {
+	hooksMap, ok := (*settings)["hooks"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	var events []string
+	for event, value := range hooksMap {
+		entries, err := eventEntries(value, false)
+		if err != nil {
+			continue
+		}
+		if _, removed := stripOwned(entries, isOurs); removed > 0 {
+			events = append(events, event)
+		}
+	}
+	sort.Strings(events)
+	return events
 }
 
 // hooksSection returns settings["hooks"], creating it when absent. A hooks
