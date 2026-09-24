@@ -119,3 +119,23 @@ func TestInstallKeepsEverySpecForTheSameEvent(t *testing.T) {
 		{"matcher": "Edit", "hooks": [{"type": "command", "command": "ward eval-edit"}]}
 	]}}`)
 }
+
+func TestUninstallLeavesAnUntouchedEmptyHooksSection(t *testing.T) {
+	doc := `{"hooks": {}, "model": "x"}`
+	settings := settingsFromJSON(t, doc)
+
+	Uninstall(&settings, CommandIdentity("ward"))
+
+	assertSettingsJSON(t, settings, doc)
+}
+
+func TestNilSettingsAreSafe(t *testing.T) {
+	isWard := CommandIdentity("ward")
+	if err := Install(nil, wardEnd, isWard); err == nil {
+		t.Error("Install(nil) succeeded; want an error")
+	}
+	Uninstall(nil, isWard)
+	if got := OwnedEvents(nil, isWard); got != nil {
+		t.Errorf("OwnedEvents(nil) = %v, want nil", got)
+	}
+}

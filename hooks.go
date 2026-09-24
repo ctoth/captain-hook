@@ -99,6 +99,9 @@ const legacyMatcher = ".*"
 // Install returns an error, leaving settings unchanged, when the hooks
 // section or an event it would touch has a shape it does not understand.
 func Install(settings *SettingsMap, specs []HookSpec, isOurs IdentityFunc) error {
+	if settings == nil {
+		return fmt.Errorf("settings must not be nil")
+	}
 	hooks, err := hooksSection(settings)
 	if err != nil {
 		return err
@@ -145,14 +148,19 @@ func Install(settings *SettingsMap, specs []HookSpec, isOurs IdentityFunc) error
 }
 
 // Uninstall removes all hooks belonging to a tool from settings.
-// Other tools' hooks are preserved. Events and a hooks section that end up
-// empty are deleted; shapes it does not understand are left alone.
+// Other tools' hooks are preserved. Events and a hooks section that removal
+// empties are deleted; everything else, including shapes it does not
+// understand, is left as it was.
 func Uninstall(settings *SettingsMap, isOurs IdentityFunc) {
+	if settings == nil {
+		return
+	}
 	hooksMap, ok := (*settings)["hooks"].(map[string]interface{})
 	if !ok {
 		return
 	}
 
+	total := 0
 	for event, value := range hooksMap {
 		entries, err := eventEntries(value, false)
 		if err != nil {
@@ -162,6 +170,7 @@ func Uninstall(settings *SettingsMap, isOurs IdentityFunc) {
 		if removed == 0 {
 			continue
 		}
+		total += removed
 		if len(kept) == 0 {
 			delete(hooksMap, event)
 		} else {
@@ -169,7 +178,7 @@ func Uninstall(settings *SettingsMap, isOurs IdentityFunc) {
 		}
 	}
 
-	if len(hooksMap) == 0 {
+	if total > 0 && len(hooksMap) == 0 {
 		delete(*settings, "hooks")
 	}
 }
@@ -177,6 +186,9 @@ func Uninstall(settings *SettingsMap, isOurs IdentityFunc) {
 // OwnedEvents returns the sorted names of events that hold at least one of
 // our commands, in any layout (matcher group, flat entry or legacy string).
 func OwnedEvents(settings *SettingsMap, isOurs IdentityFunc) []string {
+	if settings == nil {
+		return nil
+	}
 	hooksMap, ok := (*settings)["hooks"].(map[string]interface{})
 	if !ok {
 		return nil
