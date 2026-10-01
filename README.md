@@ -52,6 +52,25 @@ err = captainhook.WriteSettings(path, settings) // atomic, keeps permissions
 `Extra` adds any others, such as `"name"` or `"timeoutSec"`; it may not
 override a field captain-hook writes itself.
 
+## Event catalog
+
+`Lookup(agent)` returns which hook events an agent fires, so tools don't each
+keep their own list:
+
+```go
+hooks, ok := captainhook.Lookup(captainhook.AgentCodex)
+if ok && hooks.Supports("SessionEnd") { ... }
+for _, event := range hooks.Events {
+	spec := captainhook.HookSpec{Event: event.Key(), Flat: hooks.Flat, ...}
+}
+```
+
+`Agents()` lists every agent. Each entry records the `Source` (docs page or
+source file, with version) its event list was checked against. GitHub Copilot
+CLI events carry both spellings: `Name` is the camelCase key and `PascalName`
+the VS Code-compatible key, which gets snake_case payloads. `Key()` prefers
+`PascalName`. OpenCode is not listed: it has plugins, not settings hooks.
+
 ## Releasing
 
 Push a `vX.Y.Z` tag. The Go module proxy serves it right away. The Release
