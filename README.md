@@ -71,6 +71,21 @@ CLI events carry both spellings: `Name` is the camelCase key and `PascalName`
 the VS Code-compatible key, which gets snake_case payloads. `Key()` prefers
 `PascalName`. OpenCode is not listed: it has plugins, not settings hooks.
 
+Each entry also says where the agent keeps its hooks and how it wants them
+written:
+
+```go
+path, err := hooks.GlobalSettingsPath()       // ~/.codex/hooks.json, or under $CODEX_HOME
+candidates := hooks.ProjectSettingsPaths(".") // in the order the agent prefers
+spec := captainhook.HookSpec{Event: "PreToolUse", Matcher: hooks.Matcher, ...}
+```
+
+`HomeEnv` is the variable that replaces the config directory when set
+(`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `COPILOT_HOME`). `Matcher` is the matcher
+that selects every tool in the agent's own syntax, empty when none should be
+written. `PowerShell` marks an agent that runs hooks through PowerShell on
+Windows and so needs `HookSpec.CommandWindows`.
+
 ## Reading payloads
 
 `Parse` turns what an agent wrote to a hook's stdin into one `Payload`, so
