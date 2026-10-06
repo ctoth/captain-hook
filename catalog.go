@@ -41,6 +41,23 @@ type AgentHooks struct {
 	Source string
 	// Events lists every event the agent fires, in its docs' order.
 	Events []Event
+
+	// HomeEnv is the environment variable that, when set, replaces the
+	// agent's config directory. Empty when the agent has none.
+	HomeEnv string
+	// ConfigDir is the agent's config directory under the user's home.
+	ConfigDir string
+	// SettingsFile is the file in the config directory that holds hooks.
+	SettingsFile string
+	// ProjectFiles are the project-scope files that hold hooks, relative to
+	// the project root with forward slashes, in the order the agent prefers.
+	ProjectFiles []string
+	// Matcher is the matcher that selects every tool, in the agent's own
+	// syntax. Empty means write no matcher.
+	Matcher string
+	// PowerShell is true when the agent runs hooks through PowerShell on
+	// Windows, so a command needs a PowerShell form (HookSpec.CommandWindows).
+	PowerShell bool
 }
 
 // Supports reports whether key names one of the agent's events, under
@@ -79,6 +96,12 @@ var catalog = []AgentHooks{
 			"PreModelSwitch", "PostModelSwitch", "Elicitation", "ElicitationResult",
 			"SessionEnd",
 		),
+
+		HomeEnv:      "CLAUDE_CONFIG_DIR",
+		ConfigDir:    ".claude",
+		SettingsFile: "settings.json",
+		ProjectFiles: []string{".claude/settings.json"},
+		Matcher:      ".*",
 	},
 	{
 		Agent:  AgentCodex,
@@ -88,6 +111,13 @@ var catalog = []AgentHooks{
 			"PostCompact", "SessionStart", "SessionEnd", "UserPromptSubmit",
 			"SubagentStart", "SubagentStop", "Stop", "Interrupt",
 		),
+
+		HomeEnv:      "CODEX_HOME",
+		ConfigDir:    ".codex",
+		SettingsFile: "hooks.json",
+		ProjectFiles: []string{".codex/hooks.json"},
+		Matcher:      "*",
+		PowerShell:   true,
 	},
 	{
 		Agent:  AgentGemini,
@@ -97,6 +127,10 @@ var catalog = []AgentHooks{
 			"SessionStart", "SessionEnd", "PreCompress", "BeforeModel", "AfterModel",
 			"BeforeToolSelection",
 		),
+
+		ConfigDir:    ".gemini",
+		SettingsFile: "settings.json",
+		ProjectFiles: []string{".gemini/settings.json"},
 	},
 	{
 		Agent:  AgentQwen,
@@ -109,6 +143,11 @@ var catalog = []AgentHooks{
 			"PermissionDenied", "StopFailure", "TodoCreated", "TodoCompleted",
 			"InstructionsLoaded",
 		),
+
+		ConfigDir:    ".qwen",
+		SettingsFile: "settings.json",
+		ProjectFiles: []string{".qwen/settings.json"},
+		Matcher:      ".*",
 	},
 	{
 		Agent:  AgentCopilot,
@@ -130,11 +169,22 @@ var catalog = []AgentHooks{
 			{Name: "permissionRequest", PascalName: "PermissionRequest"},
 			{Name: "notification"},
 		},
+
+		HomeEnv:      "COPILOT_HOME",
+		ConfigDir:    ".copilot",
+		SettingsFile: "settings.json",
+		ProjectFiles: []string{".github/copilot/settings.local.json", ".github/copilot/settings.json"},
 	},
 	{
 		Agent:  AgentCommandCode,
 		Source: "https://commandcode.ai/docs/hooks (command-code 1.73.4)",
 		Events: events("PreToolUse", "PostToolUse", "Stop", "SessionStart"),
+
+		// No Matcher: Command Code tests one against SHELL/READ/WRITE/EDIT
+		// and never fires a Stop or SessionStart group that has one.
+		ConfigDir:    ".commandcode",
+		SettingsFile: "settings.json",
+		ProjectFiles: []string{".commandcode/settings.json"},
 	},
 }
 
@@ -160,5 +210,6 @@ func Lookup(agent Agent) (AgentHooks, bool) {
 
 func (h AgentHooks) clone() AgentHooks {
 	h.Events = append([]Event(nil), h.Events...)
+	h.ProjectFiles = append([]string(nil), h.ProjectFiles...)
 	return h
 }
