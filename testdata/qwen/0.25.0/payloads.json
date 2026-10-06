@@ -1,0 +1,8 @@
+[
+  {"name": "SessionStart", "key": "SessionStart", "payload":
+    {"session_id":"00000000-0000-4000-8000-000000000000","transcript_path":"C:\\home\\transcript.jsonl","cwd":"C:\\proj","hook_event_name":"SessionStart","timestamp":"2026-10-06T05:29:41.679Z","permission_mode":"yolo","source":"startup","model":"gpt-4.1-mini"}},
+  {"name": "Notification-auth-success", "key": "Notification", "payload":
+    {"session_id":"00000000-0000-4000-8000-000000000000","transcript_path":"C:\\home\\transcript.jsonl","cwd":"C:\\proj","hook_event_name":"Notification","timestamp":"2026-10-06T05:29:43.335Z","permission_mode":"yolo","message":"Successfully authenticated with openai","notification_type":"auth_success","title":"Authentication successful"}},
+  {"name": "UserPromptSubmit", "key": "UserPromptSubmit", "payload":
+    {"session_id":"00000000-0000-4000-8000-000000000000","transcript_path":"C:\\home\\transcript.jsonl","cwd":"C:\\proj","hook_event_name":"UserPromptSubmit","timestamp":"2026-10-06T05:29:43.711Z","permission_mode":"yolo","prompt_id":"00000000-0000-4000-8000-000000000000########0","prompt":"Do the steps.","submitted_prompt":"Do the steps."}}
+]
