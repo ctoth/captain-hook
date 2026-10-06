@@ -381,6 +381,34 @@ func TestParseToolNames(t *testing.T) {
 	}
 }
 
+// TestParseToolResponse: Response is the tool's result exactly as the agent
+// sent it, under whichever field name that agent uses.
+func TestParseToolResponse(t *testing.T) {
+	tests := []struct {
+		name, payload, want string
+	}{
+		{"tool_response object", `{"hook_event_name":"PostToolUse","tool_name":"Bash","tool_response":{"stdout":"hi"}}`, `{"stdout":"hi"}`},
+		{"tool_response string", `{"hook_event_name":"PostToolUse","tool_name":"Bash","tool_response":"hi\n"}`, `"hi\n"`},
+		{"Copilot tool_result", `{"hook_event_name":"PostToolUse","tool_name":"Bash","tool_result":{"result_type":"success"}}`, `{"result_type":"success"}`},
+		{"Copilot toolResult", `{"toolName":"powershell","toolResult":{"resultType":"success"}}`, `{"resultType":"success"}`},
+		{"no response", `{"hook_event_name":"PreToolUse","tool_name":"Bash"}`, ``},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Parse("", "postToolUse", []byte(tt.payload))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Tool == nil {
+				t.Fatal("Tool = nil")
+			}
+			if string(got.Tool.Response) != tt.want {
+				t.Errorf("Response = %s, want %s", got.Tool.Response, tt.want)
+			}
+		})
+	}
+}
+
 func TestParseInterruptedTools(t *testing.T) {
 	tests := []struct {
 		name, payload string
