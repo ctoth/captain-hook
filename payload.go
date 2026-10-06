@@ -97,9 +97,13 @@ type ToolCall struct {
 	// Input is the tool's arguments. An agent that sends them as a string
 	// of JSON gets them decoded, so Input is an object whenever the agent
 	// sent one in either form.
-	Input   json.RawMessage
-	Phase   Phase
-	Outcome Outcome
+	Input json.RawMessage
+	// Response is the tool's result as the agent sent it: an object for
+	// some agents and tools, plain text for others. Nil when the payload
+	// has none.
+	Response json.RawMessage
+	Phase    Phase
+	Outcome  Outcome
 	// ExitCode is the shell exit code, when the payload carries one.
 	ExitCode *int
 	// Error is the agent's error text for a failed call.
@@ -225,17 +229,29 @@ func toolCall(agent Agent, event string, fields map[string]json.RawMessage) *Too
 	}
 	name, mcp := canonicalTool(rawName)
 	call := &ToolCall{
-		Name:    name,
-		RawName: rawName,
-		MCP:     mcp,
-		Input:   toolInput(fields),
-		Phase:   toolPhases[event],
+		Name:     name,
+		RawName:  rawName,
+		MCP:      mcp,
+		Input:    toolInput(fields),
+		Response: toolResponse(fields),
+		Phase:    toolPhases[event],
 	}
 	if call.Phase == PhaseAfter {
 		failed := event == "PostToolUseFailure" || event == "postToolUseFailure"
-		call.Outcome, call.ExitCode, call.Error = toolOutcome(agent, name == "Bash", failed, fields)
+		call.Outcome, call.ExitCode, call.Error = toolOutcome(agent, name == "Bash", failed, call.Response, fields)
 	}
 	return call
+}
+
+// toolResponse returns the tool's result under whichever name the agent
+// uses: tool_response, or Copilot CLI's tool_result and toolResult.
+func toolResponse(fields map[string]json.RawMessage) json.RawMessage {
+	for _, key := range []string{"tool_response", "tool_result", "toolResult"} {
+		if raw, ok := fields[key]; ok {
+			return raw
+		}
+	}
+	return nil
 }
 
 // toolInput returns the tool's arguments. Copilot CLI sends them as
@@ -266,8 +282,9 @@ func reportsFailuresSeparately(agent Agent) bool {
 }
 
 // toolOutcome works out how a finished tool call ended. shell says the tool
-// is the shell; failed says the event is the agent's failure event.
-func toolOutcome(agent Agent, shell, failed bool, fields map[string]json.RawMessage) (Outcome, *int, string) {
+// is the shell; failed says the event is the agent's failure event;
+// response is the tool's result, if the payload has one.
+func toolOutcome(agent Agent, shell, failed bool, response json.RawMessage, fields map[string]json.RawMessage) (Outcome, *int, string) {
 	if failed {
 		errText := stringField(fields, "error")
 		exit := firstLineExitCode(errText)
@@ -277,13 +294,6 @@ func toolOutcome(agent Agent, shell, failed bool, fields map[string]json.RawMess
 		return OutcomeFailure, exit, errText
 	}
 
-	var response json.RawMessage
-	for _, key := range []string{"tool_response", "tool_result", "toolResult"} {
-		if raw, ok := fields[key]; ok {
-			response = raw
-			break
-		}
-	}
 	var text string
 	var object map[string]json.RawMessage
 	switch {
