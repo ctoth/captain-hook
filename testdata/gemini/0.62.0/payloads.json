@@ -1,0 +1,10 @@
+[
+  {"name": "BeforeTool-shell", "key": "BeforeTool", "payload":
+    {"session_id":"00000000-0000-4000-8000-000000000000","transcript_path":"C:\\home\\transcript.json","cwd":"C:\\proj","hook_event_name":"BeforeTool","timestamp":"2026-10-06T05:00:00.000Z","tool_name":"run_shell_command","tool_input":{"command":"git status"}}},
+  {"name": "AfterTool-shell-exit0", "key": "AfterTool", "payload":
+    {"session_id":"00000000-0000-4000-8000-000000000000","transcript_path":"C:\\home\\transcript.json","cwd":"C:\\proj","hook_event_name":"AfterTool","timestamp":"2026-10-06T05:00:01.000Z","tool_name":"run_shell_command","tool_input":{"command":"git status"},"tool_response":{"llmContent":"<untrusted_context>\nOutput: nothing to commit\nProcess Group PGID: 4242\n</untrusted_context>","returnDisplay":"nothing to commit"}}},
+  {"name": "AfterTool-shell-exit128", "key": "AfterTool", "payload":
+    {"session_id":"00000000-0000-4000-8000-000000000000","transcript_path":"C:\\home\\transcript.json","cwd":"C:\\proj","hook_event_name":"AfterTool","timestamp":"2026-10-06T05:00:02.000Z","tool_name":"run_shell_command","tool_input":{"command":"git status"},"tool_response":{"llmContent":"<untrusted_context>\nOutput: fatal: not a git repository\nExit Code: 128\nProcess Group PGID: 4242\n</untrusted_context>","returnDisplay":"fatal: not a git repository"}}},
+  {"name": "AfterTool-shell-failed-to-start", "key": "AfterTool", "payload":
+    {"session_id":"00000000-0000-4000-8000-000000000000","transcript_path":"C:\\home\\transcript.json","cwd":"C:\\proj","hook_event_name":"AfterTool","timestamp":"2026-10-06T05:00:03.000Z","tool_name":"run_shell_command","tool_input":{"command":"git status"},"tool_response":{"llmContent":"<untrusted_context>\nOutput: (empty)\nError: spawn ENOENT\n</untrusted_context>","returnDisplay":"","error":{"message":"spawn ENOENT","type":"shell_execute_error"}}}}
+]

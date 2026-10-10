@@ -1,0 +1,30 @@
+[
+  {"name": "PascalCase-PreToolUse-bash", "key": "PreToolUse", "payload":
+    {"hook_event_name":"PreToolUse","session_id":"00000000-0000-4000-8000-000000000000","timestamp":"2026-10-02T02:57:30.765Z","cwd":"C:\\proj","tool_name":"Bash","tool_input":{"command":"echo hello","description":"Echo hello"}}},
+  {"name": "PascalCase-PostToolUse-bash-exit0", "key": "PostToolUse", "payload":
+    {"hook_event_name":"PostToolUse","session_id":"00000000-0000-4000-8000-000000000000","timestamp":"2026-10-02T02:57:32.925Z","cwd":"C:\\proj","tool_name":"Bash","tool_input":{"command":"echo hello","description":"Echo hello"},"tool_result":{"result_type":"success","text_result_for_llm":"hello\n<shellId: 0 completed with exit code 0>"}}},
+  {"name": "PascalCase-PostToolUse-bash-exit3", "key": "PostToolUse", "payload":
+    {"hook_event_name":"PostToolUse","session_id":"00000000-0000-4000-8000-000000000000","timestamp":"2026-10-02T02:57:37.071Z","cwd":"C:\\proj","tool_name":"Bash","tool_input":{"command":"exit 3","description":"Exit with code 3"},"tool_result":{"result_type":"success","text_result_for_llm":"\n<shellId: 1 completed with exit code 3>"}}},
+  {"name": "PascalCase-PostToolUse-read", "key": "PostToolUse", "payload":
+    {"hook_event_name":"PostToolUse","session_id":"00000000-0000-4000-8000-000000000000","timestamp":"2026-10-02T02:57:47.083Z","cwd":"C:\\proj","tool_name":"Read","tool_input":{"path":"C:\\proj\\notes.txt"},"tool_result":{"result_type":"success","text_result_for_llm":"alpha"}}},
+  {"name": "PascalCase-PostToolUseFailure-write", "key": "PostToolUseFailure", "payload":
+    {"hook_event_name":"PostToolUseFailure","session_id":"00000000-0000-4000-8000-000000000000","timestamp":"2026-10-02T02:57:40.075Z","cwd":"C:\\proj","tool_name":"Write","tool_input":{"path":"C:\\elsewhere\\notes.txt","file_text":"alpha"},"error":"Parent directory does not exist"}},
+  {"name": "PascalCase-Stop", "key": "Stop", "payload":
+    {"hook_event_name":"Stop","session_id":"00000000-0000-4000-8000-000000000000","timestamp":"2026-10-02T02:57:53.265Z","cwd":"C:\\proj","transcript_path":"C:\\home\\transcript.jsonl","stop_reason":"end_turn","stop_hook_active":false}},
+  {"name": "PascalCase-PermissionRequest", "key": "PermissionRequest", "payload":
+    {"hookName":"permissionRequest","sessionId":"00000000-0000-4000-8000-000000000000","timestamp":1790909851552,"cwd":"C:\\proj","toolName":"powershell","toolInput":{"command":"echo hello"},"permissionSuggestions":[]}},
+  {"name": "camelCase-preToolUse-powershell", "key": "preToolUse", "payload":
+    {"sessionId":"00000000-0000-4000-8000-000000000000","timestamp":1790909850765,"cwd":"C:\\proj","toolName":"powershell","toolArgs":{"command":"echo hello","description":"Echo hello"}}},
+  {"name": "camelCase-postToolUse-exit3", "key": "postToolUse", "payload":
+    {"sessionId":"00000000-0000-4000-8000-000000000000","timestamp":1790909857071,"cwd":"C:\\proj","toolName":"powershell","toolArgs":{"command":"exit 3","description":"Exit with code 3"},"toolResult":{"resultType":"success","textResultForLlm":"\n<shellId: 1 completed with exit code 3>"}}},
+  {"name": "camelCase-postToolUse-view", "key": "postToolUse", "payload":
+    {"sessionId":"00000000-0000-4000-8000-000000000000","timestamp":1790909867083,"cwd":"C:\\proj","toolName":"view","toolArgs":{"path":"C:\\proj\\notes.txt"},"toolResult":{"resultType":"success","textResultForLlm":"alpha"}}},
+  {"name": "camelCase-postToolUseFailure-create", "key": "postToolUseFailure", "payload":
+    {"sessionId":"00000000-0000-4000-8000-000000000000","timestamp":1790909860075,"cwd":"C:\\proj","toolName":"create","toolArgs":{"path":"C:\\elsewhere\\notes.txt","file_text":"alpha"},"error":"Parent directory does not exist"}},
+  {"name": "camelCase-agentStop", "key": "agentStop", "payload":
+    {"sessionId":"00000000-0000-4000-8000-000000000000","timestamp":1790909873265,"cwd":"C:\\proj","transcriptPath":"C:\\home\\transcript.jsonl","stopReason":"end_turn","stop_hook_active":false}},
+  {"name": "camelCase-sessionStart", "key": "sessionStart", "payload":
+    {"sessionId":"00000000-0000-4000-8000-000000000000","timestamp":1790909848224,"cwd":"C:\\proj","source":"new","initialPrompt":"Do the steps."}},
+  {"name": "camelCase-userPromptTransformed", "key": "userPromptTransformed", "payload":
+    {"sessionId":"00000000-0000-4000-8000-000000000000","timestamp":1790909847840,"cwd":"C:\\proj","prompt":"Do the steps.","transformedPrompt":"<current_datetime>2026-10-01T20:57:27.840-06:00</current_datetime>\n\nDo the steps."}}
+]

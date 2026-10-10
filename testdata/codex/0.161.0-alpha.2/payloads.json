@@ -1,0 +1,12 @@
+[
+  {"name": "PreToolUse-bash", "key": "PreToolUse", "payload":
+    {"session_id":"00000000-0000-4000-8000-000000000000","turn_id":"00000000-0000-4000-8000-000000000000","transcript_path":"C:\\home\\transcript.jsonl","cwd":"C:\\proj","hook_event_name":"PreToolUse","model":"gpt-6.1-sol","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo hello"},"tool_use_id":"exec-00000000-0000-4000-8000-000000000000"}},
+  {"name": "PostToolUse-bash-output", "key": "PostToolUse", "payload":
+    {"session_id":"00000000-0000-4000-8000-000000000000","turn_id":"00000000-0000-4000-8000-000000000000","transcript_path":"C:\\home\\transcript.jsonl","cwd":"C:\\proj","hook_event_name":"PostToolUse","model":"gpt-6.1-sol","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"echo hello"},"tool_response":"hello\r\n","tool_use_id":"exec-00000000-0000-4000-8000-000000000000"}},
+  {"name": "PostToolUse-bash-exit3", "key": "PostToolUse", "payload":
+    {"session_id":"00000000-0000-4000-8000-000000000000","turn_id":"00000000-0000-4000-8000-000000000000","transcript_path":"C:\\home\\transcript.jsonl","cwd":"C:\\proj","hook_event_name":"PostToolUse","model":"gpt-6.1-sol","permission_mode":"bypassPermissions","tool_name":"Bash","tool_input":{"command":"exit 3"},"tool_response":"","tool_use_id":"exec-00000000-0000-4000-8000-000000000000"}},
+  {"name": "Stop", "key": "Stop", "payload":
+    {"session_id":"00000000-0000-4000-8000-000000000000","turn_id":"00000000-0000-4000-8000-000000000000","transcript_path":"C:\\home\\transcript.jsonl","cwd":"C:\\proj","hook_event_name":"Stop","model":"gpt-6.1-sol","permission_mode":"bypassPermissions","stop_hook_active":false,"last_assistant_message":"Done."}},
+  {"name": "SessionStart", "key": "SessionStart", "payload":
+    {"session_id":"00000000-0000-4000-8000-000000000000","transcript_path":"C:\\home\\transcript.jsonl","cwd":"C:\\proj","hook_event_name":"SessionStart","model":"gpt-6.1-sol","permission_mode":"bypassPermissions","source":"startup"}}
+]
